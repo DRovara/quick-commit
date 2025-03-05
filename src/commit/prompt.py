@@ -5,12 +5,22 @@ from __future__ import annotations
 
 import os
 import sys
-import termios
 import tty
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, cast
+
+if TYPE_CHECKING:
+    from types import ModuleType
+
+termios: ModuleType | None
+try:
+    import termios
+except ImportError:
+    termios = None
+    import msvcrt
 
 if TYPE_CHECKING:
     from collections.abc import Callable
+
 
 COLOUR_YELLOW = "\033[33m"
 STYLE_BOLD = "\033[1m"
@@ -53,6 +63,62 @@ def getchar() -> str:
     Returns:
         str: The character entered by the user.
     """
+    if termios is not None:
+        return getchar_unix()
+    return getchar_windows()
+
+
+def getchar_windows() -> str:
+    """Get a single character from the user on windows systems.
+
+    Returns:
+        str: The character entered by the user.
+    """
+    char = msvcrt.getch()  # type: ignore[attr-defined]
+    if char == b"\xe0":
+        char = msvcrt.getch()  # type: ignore[attr-defined]
+        return _get_windows_special_key(char)
+    if char == b"\x00":
+        char = msvcrt.getch()  # type: ignore[attr-defined]
+        return _get_windows_special_key(char)
+    return cast("str", char.decode("utf-8"))
+
+
+def _get_windows_special_key(key: bytearray) -> str:
+    """Map Windows special keys to their names.
+
+    Args:
+        key: bytearray: The special key code.
+
+    Returns:
+        str: The name of the special key.
+    """
+    special_keys = {
+        b"H": "up",
+        b"P": "down",
+        b"K": "left",
+        b"M": "right",
+        b"G": "home",
+        b"O": "end",
+        b"R": "insert",
+        b"S": "delete",
+        b"\x08": "backspace",
+        b"\r": "return",
+        b"\t": "tab",
+        b"\x1b": "esc",
+    }
+    return special_keys.get(key, f"unknown:{key}")
+
+
+def getchar_unix() -> str:
+    """Get a single character from the user on unix systems.
+
+    Returns:
+        str: The character entered by the user.
+    """
+    if termios is None:
+        msg = "termios module not available"
+        raise ImportError(msg)
     old_settings = termios.tcgetattr(sys.stdin)
     tty.setcbreak(sys.stdin.fileno())
     try:
