@@ -5,8 +5,7 @@ from __future__ import annotations
 
 import os
 import sys
-import tty
-from typing import TYPE_CHECKING, Any, cast
+from typing import TYPE_CHECKING, Any
 
 if TYPE_CHECKING:
     from types import ModuleType
@@ -14,6 +13,7 @@ if TYPE_CHECKING:
 termios: ModuleType | None
 try:
     import termios
+    import tty
 except ImportError:
     termios = None
     import msvcrt
@@ -74,17 +74,20 @@ def getchar_windows() -> str:
     Returns:
         str: The character entered by the user.
     """
-    char = msvcrt.getch()  # type: ignore[attr-defined]
+    char = msvcrt.getch()
     if char == b"\xe0":
-        char = msvcrt.getch()  # type: ignore[attr-defined]
-        return _get_windows_special_key(char)
+        char = msvcrt.getch()
+        return _get_windows_special_key(char)[0]
     if char == b"\x00":
-        char = msvcrt.getch()  # type: ignore[attr-defined]
-        return _get_windows_special_key(char)
-    return cast("str", char.decode("utf-8"))
+        char = msvcrt.getch()
+        return _get_windows_special_key(char)[0]
+    try_translate = _get_windows_special_key(char)
+    if try_translate[1]:
+        return try_translate[0]
+    return char.decode("utf-8")
 
 
-def _get_windows_special_key(key: bytearray) -> str:
+def _get_windows_special_key(key: bytes) -> tuple[str, bool]:
     """Map Windows special keys to their names.
 
     Args:
@@ -107,7 +110,9 @@ def _get_windows_special_key(key: bytearray) -> str:
         b"\t": "tab",
         b"\x1b": "esc",
     }
-    return special_keys.get(key, f"unknown:{key}")
+    if key in special_keys:
+        return (special_keys.get(key, f"unknown:{key!r}"), True)
+    return ("", False)
 
 
 def getchar_unix() -> str:
@@ -120,7 +125,7 @@ def getchar_unix() -> str:
         msg = "termios module not available"
         raise ImportError(msg)
     old_settings = termios.tcgetattr(sys.stdin)
-    tty.setcbreak(sys.stdin.fileno())
+    tty.setcbreak(sys.stdin.fileno())  # type: ignore[attr-defined]
     try:
         while True:
             b = os.read(sys.stdin.fileno(), 3).decode()
