@@ -91,7 +91,10 @@ def get_possible_scopes() -> list[str]:
     def get_scope(message: str) -> str:
         front = message.split(":")[0]
         if "(" in front and ")" in front:
-            return front[front.index("(") + 1 : front.index(")")]
+            result = front[front.index("(") + 1 : front.index(")")]
+            if " " in result:
+                return ""
+            return result
         return ""
 
     conf = config.find_config()
@@ -151,6 +154,7 @@ def get_gitmojis(filter_string: str = "", start_index: int = 0) -> list[str]:
     Returns:
         list[str]: _description_
     """
+    gitmoji_regex = re.compile(r":[A-z0-9_]+:")
     conf = config.find_config()
     gitmoji_list = get_gitmoji_list()
     gitmoji_dict = {}
@@ -161,16 +165,15 @@ def get_gitmojis(filter_string: str = "", start_index: int = 0) -> list[str]:
     repo = get_repo()
     for commit in repo.iter_commits() if repo.head.is_valid() else []:
         message = commit.message
-        if message.count(":") < 3:
-            continue
-        gitmoji = message.split(":")[2]
-        if gitmoji != gitmoji.strip():
-            continue
-        gitmoji = f":{gitmoji}:"
-        if gitmoji not in gitmoji_count:
-            gitmoji_count[gitmoji] = 0
-            gitmoji_dict[gitmoji] = f"?? - {gitmoji} - Unknown gitmoji"
-        gitmoji_count[gitmoji] += 1
+        for match in re.finditer(gitmoji_regex, message):
+            gitmoji = match.group()
+            pos = match.start()
+            if pos > 0 and message[pos - 1] == ":":
+                continue
+            if gitmoji not in gitmoji_count:
+                gitmoji_count[gitmoji] = 0
+                gitmoji_dict[gitmoji] = f"?? - {gitmoji} - Unknown gitmoji"
+            gitmoji_count[gitmoji] += 1
 
     for gm in conf.excluded_gitmojis:
         with_colons = f":{gm}:"
