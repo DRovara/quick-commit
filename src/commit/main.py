@@ -97,9 +97,12 @@ def main() -> None:
         action="store_true",
         help="Mark the commit as a breaking change.",
     )
+    parser.add_argument(
+        "--ai", nargs="?", const="", default=None, help="Text-form list of AIs, or leave blank to be prompted"
+    )
     args = parser.parse_args()
     try:
-        run(args.footer, args.breaking, args.a, args.no_scope)
+        run(args.footer, args.breaking, args.a, args.no_scope, args.ai)
     except KeyboardInterrupt:
         print("\nExiting...")
 
@@ -119,7 +122,7 @@ def run_precommit() -> bool:
     return result.returncode == 0
 
 
-def run(include_footer: bool, breaking_change: bool, stage_all: bool, no_scope: bool) -> None:
+def run(include_footer: bool, breaking_change: bool, stage_all: bool, no_scope: bool, ai: str | None) -> None:
     """Run the commit process.
 
     Args:
@@ -127,6 +130,7 @@ def run(include_footer: bool, breaking_change: bool, stage_all: bool, no_scope: 
         breaking_change (bool): Determine if the commit is a breaking change.
         stage_all (bool): Determine if all changes should be staged automatically.
         no_scope (bool): Determine if a scope should be included in the commit message.
+        ai (str | None): Text-form list of AIs, or None if not provided.
     """
     if commits.get_repo() is None:
         print("Error: Not a git repository.")
@@ -177,8 +181,17 @@ def run(include_footer: bool, breaking_change: bool, stage_all: bool, no_scope: 
     )
     gitmoji = gitmoji.split("-")[1].strip()
 
+    if ai is not None and not ai:
+        ai = input("Enter a list of AIs (comma-separated): ")
+
     print("(optional) Enter a longer description of the changes made in this commit (empty line to exit):")
     description = prompt.multiline_input()
+    if ai is not None:
+        template_text = conf.ai_template.replace("$", ai)
+        if description:
+            description += f"\n{template_text}"
+        else:
+            description = template_text
 
     if include_footer or breaking_change or conf.enable_footer:
         footer = input("Footer information (referenced issues, breaking changes, etc.):\n")

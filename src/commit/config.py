@@ -46,6 +46,8 @@ class Config:
 
     enable_footer: bool = False
 
+    ai_template: str = "Assisted-by: $"
+
 
 def find_config() -> Config:
     """Find the configuration for your current working directory.
@@ -213,5 +215,13 @@ def parse_config(config: Path | str) -> Config:
             msg = "The always-enable-footer option must be a boolean."
             raise ValueError(msg)
         c.enable_footer = data["always-enable-footer"]
+    if "ai-template" in data:
+        if not isinstance(data["ai-template"], str):
+            msg = "The ai-template option must be a string."
+            raise ValueError(msg)
+        if "$" not in data["ai-template"]:
+            msg = "The ai-template option must contain a '$' sign to indicate where the AI name(s) should be inserted."
+            raise ValueError(msg)
+        c.ai_template = data["ai-template"]
 
     return c
