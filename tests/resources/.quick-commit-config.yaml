@@ -39,3 +39,4 @@ gitmojis:
     - my-gitmoji-2
 
 always-enable-footer: true
+ai-template: Made by $.

@@ -29,6 +29,7 @@ def test_parse() -> None:
     assert x.priority_gitmojis == ["sparkles", "my-gitmoji", "my-gitmoji-2"]
 
     assert x.enable_footer
+    assert x.ai_template == "Made by $."
 
 
 def test_parse_empty() -> None:
