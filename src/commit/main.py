@@ -166,11 +166,13 @@ def repeat(message: str, stage_all: bool) -> None:
     if res is None:
         print("Error: No previous commit found.")
         sys.exit(1)
-    last_type, last_scope, last_gitmoji, last_message = res
+    last_type, last_scope, last_breaking, last_gitmoji, last_message = res
     if message:
-        last_message = message + last_message[last_message.find("\n") :]
+        newline_idx = last_message.find("\n")
+        last_message = message + last_message[newline_idx:] if newline_idx != -1 else message
     type_and_scope = f"{last_type}({last_scope})" if last_scope else last_type
-    full_message = f"{type_and_scope}: {last_gitmoji} {last_message}"
+    breaking = "!" if last_breaking else ""
+    full_message = f"{type_and_scope}{breaking}: {last_gitmoji} {last_message}"
 
     result = subprocess.run(["git", "commit", "-m", full_message], capture_output=True, text=True, check=False)  # noqa: S603 S607
     if result.returncode != 0:

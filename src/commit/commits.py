@@ -9,29 +9,30 @@ import git  # type: ignore[import-not-found]
 
 from commit import config
 
-QUICK_COMMIT_PATTERN = r"^(\w+)(\([\w-]+\))?: (:[^:]+:) ((.*\n?)+)"
+QUICK_COMMIT_PATTERN = r"^(\w+)(?:\(([\w-]+)\))?(!?): (:[^:]+:) (.*)"
 
 
-def get_last_quick_commit() -> tuple[str, str, str, str] | None:
+def get_last_quick_commit() -> tuple[str, str | None, bool, str, str] | None:
     """Parse the last commit from the git log if it is compatible with the `quick-commit` style.
 
     Returns:
-        str | None: The last commit if it was a quick-commit, or `None` otherwise.
+        tuple[str, str | None, bool, str, str] | None: The last commit if it was a quick-commit, or `None` otherwise.
     """
     repo = get_repo()
     if not repo.head.is_valid():
         return None
     last_commit = repo.head.commit.message
-    match = re.match(QUICK_COMMIT_PATTERN, last_commit)
+    match = re.match(QUICK_COMMIT_PATTERN, last_commit, flags=re.DOTALL)
     if not match:
         return None
 
     commit_type = match.group(1)
     commit_scope = match.group(2)
-    commit_gitmoji = match.group(3)
-    commit_message = match.group(4)
+    commit_breaking = match.group(3) == "!"
+    commit_gitmoji = match.group(4)
+    commit_message = match.group(5)
 
-    return (commit_type, commit_scope, commit_gitmoji, commit_message)
+    return (commit_type, commit_scope, commit_breaking, commit_gitmoji, commit_message)
 
 
 def get_stages_files() -> list[str]:
