@@ -100,9 +100,20 @@ def main() -> None:
     parser.add_argument(
         "--ai", nargs="?", const="", default=None, help="Text-form list of AIs, or leave blank to be prompted"
     )
+    parser.add_argument(
+        "--repeat",
+        "-r",
+        nargs="?",
+        const="",
+        default=None,
+        help="Repeat the last commit with the exact same settings. Optionally provide an alternative main commit message.",
+    )
     args = parser.parse_args()
     try:
-        run(args.footer, args.breaking, args.a, args.no_scope, args.ai)
+        if args.repeat is not None:
+            repeat(args.repeat, args.a)
+        else:
+            run(args.footer, args.breaking, args.a, args.no_scope, args.ai)
     except KeyboardInterrupt:
         print("\nExiting...")
 
@@ -122,6 +133,53 @@ def run_precommit() -> bool:
     return result.returncode == 0
 
 
+def _check_commit_possible_and_begin(stage_all: bool) -> None:
+    """Check if a commit is possible.
+
+    Args:
+        stage_all (bool): Determine if all changes should be staged automatically.
+    """
+    if stage_all:
+        subprocess.run(["git", "add", "."], check=False)  # noqa: S607 S603
+
+    if commits.get_repo() is None:
+        print("Error: Not a git repository.")
+        sys.exit(1)
+
+    if not commits.get_stages_files():
+        print("Error: No files selected to commit.")
+        sys.exit(1)
+
+    if not run_precommit():
+        sys.exit(1)
+
+
+def repeat(message: str, stage_all: bool) -> None:
+    """Repeat the last commit with an optional new commit message.
+
+    Args:
+        message (str): An optional new commit message. If empty, the last commit message will be used.
+        stage_all (bool): Determine if all changes should be staged automatically.
+    """
+    _check_commit_possible_and_begin(stage_all)
+    res = commits.get_last_quick_commit()
+    if res is None:
+        print("Error: No previous commit found.")
+        sys.exit(1)
+    last_type, last_scope, last_gitmoji, last_message = res
+    if message:
+        last_message = message + last_message[last_message.find("\n") :]
+    type_and_scope = f"{last_type}({last_scope})" if last_scope else last_type
+    full_message = f"{type_and_scope}: {last_gitmoji} {last_message}"
+
+    result = subprocess.run(["git", "commit", "-m", full_message], capture_output=True, text=True, check=False)  # noqa: S603 S607
+    if result.returncode != 0:
+        print(result.stderr)
+        print(result.stdout)
+    else:
+        print("Committed successfully:\n", full_message, sep="")
+
+
 def run(include_footer: bool, breaking_change: bool, stage_all: bool, no_scope: bool, ai: str | None) -> None:
     """Run the commit process.
 
@@ -132,21 +190,9 @@ def run(include_footer: bool, breaking_change: bool, stage_all: bool, no_scope: 
         no_scope (bool): Determine if a scope should be included in the commit message.
         ai (str | None): Text-form list of AIs, or None if not provided.
     """
-    if commits.get_repo() is None:
-        print("Error: Not a git repository.")
-        sys.exit(1)
-
-    if not commits.get_stages_files():
-        print("Error: No files selected to commit.")
-        sys.exit(1)
-
     conf = config.find_config()
 
-    if stage_all:
-        subprocess.run(["git", "add", "."], check=False)  # noqa: S607 S603
-
-    if not run_precommit():
-        sys.exit(1)
+    _check_commit_possible_and_begin(stage_all)
 
     commit_types = commits.get_commit_types()
     (_, index, _) = prompt.show_with_filter(commit_types, "Select the type of change that you are committing: ")

@@ -108,6 +108,7 @@ ignore = [
     "PLC0415", # Import should be at top of file
     "S101",    # Use of assert detected
     "S404",    # `subprocess` module is possibly insecure
+    "T201",    # Use of `print` detected
 ]
 isort.required-imports = ["from __future__ import annotations"]
 
