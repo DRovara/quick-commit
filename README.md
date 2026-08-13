@@ -50,6 +50,10 @@ If you wish to include a footer in your commit message, use the flag `--footer` 
 
 To mark breaking changes in your commit message, use the flag `--breaking`.
 
+The `--ai [ai agent]` option allows you to specify AI agents that were used to generate the code of the commit. The AI agents are listed in the footer of the commit message.
+
+Finally, the `-r [message]` option allows you to repeat a previous commit with the same structure (type, scope, and gitmoji) but with a different message. This is useful for making multiple commits of the same type.
+
 ## Configuration
 
 `quick-commit` uses a configuration file to store your preferences. A configuration file can be stored locally
@@ -100,4 +104,5 @@ gitmojis:
     - my-gitmoji-2
 
 always-enable-footer: true
+ai-template: Hey we used the AI agent(s) $
 ```
