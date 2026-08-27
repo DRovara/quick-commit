@@ -16,9 +16,12 @@ jobs:
       id-token: write
 
     steps:
-      # Check out the repository code.
+      # Check out the repository code, including tags so setuptools_scm can
+      # derive the version from the tag being built.
       - name: Check out repository
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
       # Set up the desired Python version.
       - name: Set up Python
